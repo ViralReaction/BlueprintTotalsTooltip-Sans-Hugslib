@@ -10,10 +10,12 @@ using RimWorld.Planet;
 using RimWorld;
 using Verse;
 using System;
+using Verse.Sound;
+using static BlueprintTotalsTooltip.ModSettings_BlueprintTotal;
 
 namespace BlueprintTotalsTooltip
 {
-	class TotalsTooltipDrawer
+	public class TotalsTooltipDrawer
 	{
 		private bool highlightEnabled;
 
@@ -25,18 +27,38 @@ namespace BlueprintTotalsTooltip
 		private readonly float listElementsHeight = 29f;
 		private readonly float xOffsetFromContainer = 10f;
 
-		private TotalsTooltipMod modInstance;
+		private Mod_BlueprintTotal modInstance;
 		private CameraChangeDetector cameraChangeDetector;
 
 		private bool zoomWasValid = false;
+        public static ZoomVisibleTrackingMode zoomForVisibleTracking => ModSettings_BlueprintTotal.zoomForVisibleTracking;
+        public bool ZoomIsValid
+        {
+            get
+            {
+				return (int)Find.CameraDriver.CurrentZoom <= (int)zoomForVisibleTracking;
+            }
+        }
 
-		public bool ZoomIsValid { get { return (int)Find.CameraDriver.CurrentZoom <= (int)modInstance.ZoomForVisibleTracking.Value; } }
+        public ConstructibleTotalsTracker Tracker { get; }
+		public static bool NoConstructablesSelected
+		{
+			get
+			{
+				foreach (var obj in Find.Selector.SelectedObjects)
+				{
+					if (obj is IConstructible)
+					{
+						return false;
+					}
+				}
 
-		public ConstructibleTotalsTracker Tracker { get; }
+				return true;
+			}
+		}
+		public static TotalsTooltipDrawer Instance;
 
-		public static bool NoConstructablesSelected => !Find.Selector.SelectedObjects.Any(x => x is IConstructible);
-
-		public TotalsTooltipDrawer(TotalsTooltipMod mod)
+		public TotalsTooltipDrawer(Mod_BlueprintTotal mod)
 		{
 			modInstance = mod;
 			Tracker = new ConstructibleTotalsTracker();
@@ -52,24 +74,23 @@ namespace BlueprintTotalsTooltip
 
 		public void ResolveSettings()
 		{
-			highlightEnabled = modInstance.HighlightOpacity.Value != 0f;
-			tipXPos = (RectDimensionPosition)modInstance.TipXPosition.Value;
-			tipYPos = (RectDimensionPosition)modInstance.TipYPosition.Value;
-			Tracker.ResolveSettings(modInstance);
+			highlightEnabled = ModSettings_BlueprintTotal.HighlightOpacity != 0f;
+			tipXPos = (RectDimensionPosition)ModSettings_BlueprintTotal.TipXPosition;
+			tipYPos = (RectDimensionPosition)ModSettings_BlueprintTotal.TipYPosition;
 		}
 
 		#region callbacks
 		public void OnPlaySettingChange()
 		{
-			if (TotalsTooltipMod.ShouldDrawTooltip && !WorldRendererUtility.WorldRenderedNow)
+			if (ModSettings_BlueprintTotal.ShouldDrawTooltip && !WorldRendererUtility.WorldRenderedNow && Find.CurrentMap != null)
 			{
-				if (NoConstructablesSelected && ZoomIsValid && modInstance.TrackingVisible)
-				{
+				if (NoConstructablesSelected && ZoomIsValid && ModSettings_BlueprintTotal.TrackingVisible)
+				{ 
 					Tracker.TrackVisibleConstructibles();
 				}
 				else 
 				{
-					Tracker.ClearTracked();
+                    Tracker.ClearTracked();
 					Tracker.TrackSelectedConstructibles();
 				}
 			}
@@ -77,9 +98,9 @@ namespace BlueprintTotalsTooltip
 
 		public void OnSelectionChange()
 		{
-			if (TotalsTooltipMod.ShouldDrawTooltip && !WorldRendererUtility.WorldRenderedNow)
+			if (ModSettings_BlueprintTotal.ShouldDrawTooltip && !WorldRendererUtility.WorldRenderedNow)
 			{
-				if (NoConstructablesSelected && modInstance.TrackingVisible)
+				if (NoConstructablesSelected && ModSettings_BlueprintTotal.TrackingVisible)
 					Tracker.TrackVisibleConstructibles();
 				else
 					Tracker.TrackSelectedConstructibles();
@@ -88,7 +109,7 @@ namespace BlueprintTotalsTooltip
 
 		public void OnCameraChange()
 		{
-			if (TotalsTooltipMod.ShouldDrawTooltip && modInstance.TrackingVisible)
+			if (ModSettings_BlueprintTotal.ShouldDrawTooltip && ModSettings_BlueprintTotal.TrackingVisible)
 			{
 				if (NoConstructablesSelected)
 				{
@@ -107,7 +128,7 @@ namespace BlueprintTotalsTooltip
 
 		public void OnThingAdded(Thing thing)
 		{
-			if (NoConstructablesSelected && modInstance.TrackingVisible && TotalsTooltipMod.ShouldDrawTooltip && !WorldRendererUtility.WorldRenderedNow)
+			if (NoConstructablesSelected && ModSettings_BlueprintTotal.TrackingVisible && ModSettings_BlueprintTotal.ShouldDrawTooltip && !WorldRendererUtility.WorldRenderedNow)
 				if (thing is IConstructible)
 				{
 					Tracker.TryTrackConstructible(thing);
@@ -116,7 +137,7 @@ namespace BlueprintTotalsTooltip
 
 		public void OnThingRemove(Thing thing)
 		{
-			if (NoConstructablesSelected && modInstance.TrackingVisible && TotalsTooltipMod.ShouldDrawTooltip && !WorldRendererUtility.WorldRenderedNow)
+			if (NoConstructablesSelected && ModSettings_BlueprintTotal.TrackingVisible && ModSettings_BlueprintTotal.ShouldDrawTooltip && !WorldRendererUtility.WorldRenderedNow)
 			{
 				if (thing is IConstructible)
 				{
@@ -128,18 +149,37 @@ namespace BlueprintTotalsTooltip
 
 		public void OnGUI()
 		{
+			CheckDrawSettingToggle();
 			if (Find.CurrentMap != null && !WorldRendererUtility.WorldRenderedNow)
 			{
 				cameraChangeDetector.OnGUI();
-				if (TotalsTooltipMod.ShouldDrawTooltip && Tracker.NumberTracked > 0)
+				if (ModSettings_BlueprintTotal.ShouldDrawTooltip && Tracker.NumberTracked > 0)
 				{
-					if (highlightEnabled && NoConstructablesSelected) Tracker.HighlightTracked(modInstance.HighlightOpacity, highlightMargin);
+					if (highlightEnabled && NoConstructablesSelected) Tracker.HighlightTracked(ModSettings_BlueprintTotal.HighlightOpacity, highlightMargin);
 					DrawToolTip();
 				}
 			}
 		}
+        public static void CheckDrawSettingToggle()
+        {
+            if (toggleTipDraw != null && toggleTipDraw.KeyDownEvent)
+            {
+                ModSettings_BlueprintTotal.ShouldDrawTooltip = !ModSettings_BlueprintTotal.ShouldDrawTooltip;
+                TooltipToggleAdder.NotifyPlaySettingToggled();
+                if (ModSettings_BlueprintTotal.ShouldDrawTooltip)
+                    SoundDefOf.Checkbox_TurnedOn.PlayOneShotOnCamera(null);
+                else
+                    SoundDefOf.Checkbox_TurnedOff.PlayOneShotOnCamera(null);
+            }
+        }
 
-		private void DrawToolTip()
+        public static KeyBindingDef toggleTipDraw;
+        public static void ResolveReferences()
+        {
+            toggleTipDraw = BluePrintTotalDefOf.ToggleTracking;
+        }
+
+        public void DrawToolTip()
 		{
 			List<ThingDefCount> trackedRequirements = Tracker.TotalCosts;
 			float maxCountWidth = (trackedRequirements.Count > 0) ? Text.CalcSize(trackedRequirements[0].Count.ToString()).x : 0f;
@@ -150,9 +190,9 @@ namespace BlueprintTotalsTooltip
 			toolTipHeight += listElementsMargin * 2;
 			Rect tooltipRect = new Rect(0f, 0f, toolTipWidth, toolTipHeight);
 			PositionTipRect(ref tooltipRect);
-			if (modInstance.ClampTipToScreen)
+			if (ModSettings_BlueprintTotal.ClampTipToScreen)
 			{
-				tooltipRect = tooltipRect.ClampRectInRect(new Rect(0, 0, UI.screenWidth, UI.screenHeight).ContractedBy(modInstance.TooltipClampMargin));
+				tooltipRect = tooltipRect.ClampRectInRect(new Rect(0, 0, UI.screenWidth, UI.screenHeight).ContractedBy(ModSettings_BlueprintTotal.TooltipClampMargin));
 			}
 			Rect innerTipRect = tooltipRect.ContractedBy(listElementsMargin).WidthContractedBy(xOffsetFromContainer);
 			int indexOffset = 0;
@@ -194,18 +234,18 @@ namespace BlueprintTotalsTooltip
 			Widgets.ThingIcon(iconRect, count.ThingDef);
 			Rect labelRect = new Rect(rowRect.x + listElementsHeight, rowRect.y, rowRect.width - listElementsHeight, rowRect.height);
 			Text.Anchor = TextAnchor.MiddleLeft;
-			int difference = (modInstance.CountInStorage) ? Find.CurrentMap.GetCountInStorageDifference(count) : Find.CurrentMap.GetCountOnMapDifference(count, modInstance.CountForbidden);
+			int difference = (ModSettings_BlueprintTotal.CountInStorage) ? Find.CurrentMap.GetCountInStorageDifference(count) : Find.CurrentMap.GetCountOnMapDifference(count, ModSettings_BlueprintTotal.CountForbidden);
 			if (difference > 0) GUI.color = Color.red;
 			Widgets.Label(labelRect, count.Count.ToString());
 			GUI.color = Color.white;
 			Text.Anchor = TextAnchor.UpperLeft;
-			if (modInstance.ShowRowToolTips) DoRowTooltip(rowRect, count, difference);
+			if (ModSettings_BlueprintTotal.ShowRowToolTips) DoRowTooltip(rowRect, count, difference);
 		}
 
 		private void DoRowTooltip(Rect tooltipRegion, ThingDefCount count, int difference)
 		{
 			int present = -difference + count.Count;
-			string tipLabel = (modInstance.CountInStorage) ? "ReqRowTip_Storage".Translate(count.Count, present) : "ReqRowTip_All".Translate(count.Count, present);
+			string tipLabel = (ModSettings_BlueprintTotal.CountInStorage) ? "ReqRowTip_Storage".Translate(count.Count, present) : "ReqRowTip_All".Translate(count.Count, present);
 			TooltipHandler.TipRegion(tooltipRegion, new TipSignal(tipLabel));
 		}
 

@@ -2,7 +2,6 @@
 using System.Linq;
 using RimWorld;
 using Verse;
-using HugsLib;
 using UnityEngine;
 
 namespace BlueprintTotalsTooltip.TotalsTipUtilities

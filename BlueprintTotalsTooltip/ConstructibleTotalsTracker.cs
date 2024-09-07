@@ -6,7 +6,7 @@ using Verse;
 
 namespace BlueprintTotalsTooltip
 {
-	class ConstructibleTotalsTracker
+	public class ConstructibleTotalsTracker
 	{
 		public bool trackForbidden;
 		public float visibleMargin;
@@ -67,12 +67,6 @@ namespace BlueprintTotalsTooltip
 
 		public void ClearTracked() => trackedConstructibles.Clear();
 
-		public void ResolveSettings(TotalsTooltipMod mod)
-		{
-			trackForbidden = mod.TrackingForbidden;
-			visibleMargin = mod.VisibilityMargin;
-		}
-
 		#region track updating
 		public void TryTrackConstructible(Thing constructible)
 		{
@@ -126,36 +120,55 @@ namespace BlueprintTotalsTooltip
 			cacheUpdated = false;
 		}
 
-		public void TrackSelectedConstructibles()
-		{
-			cachedWorkLeftForFrames.Clear();
-			WorkLeft = 0;
-			foreach (object selected in Find.Selector.SelectedObjects)
-			{
-				if (selected is IConstructible asIConstructible && !trackedConstructibles.Contains(selected as IConstructible))
-				{
-					trackedConstructibles.Add(asIConstructible);
-				}
-			}
-			CellRectBuilder rectBuilder = new CellRectBuilder();
-			HashSet<IConstructible> lastConstructiblesTracked = new HashSet<IConstructible>(trackedConstructibles);
-			trackedConstructibles.Clear();
-			foreach (IConstructible constructible in lastConstructiblesTracked)
-			{
-				if (Find.Selector.SelectedObjects.Contains(constructible))
-				{
-					if (ForbidUtility.IsForbidden(constructible as Thing, Faction.OfPlayer) && !trackForbidden) continue;
-					Track(constructible);
-					Vector3[] corners = (constructible as Thing).CornerPositions();
-					for (int i = 0; i < corners.Length; i++) rectBuilder.ConsiderPoint(corners[i]);
-				}
-			}
-			containingRect = rectBuilder.ToCellRect();
-			cacheUpdated = false;
-		}
-		#endregion track updating
+        public void TrackSelectedConstructibles()
+        {
+            cachedWorkLeftForFrames.Clear();
+            WorkLeft = 0;
 
-		public void FrameBeingBuilt(Frame frame)
+            // Safely add IConstructible objects to trackedConstructibles
+            foreach (object selected in Find.Selector.SelectedObjects)
+            {
+                if (selected is IConstructible constructible && !trackedConstructibles.Contains(constructible))
+                {
+                    trackedConstructibles.Add(constructible);
+                }
+            }
+
+            CellRectBuilder rectBuilder = new CellRectBuilder();
+            HashSet<IConstructible> lastConstructiblesTracked = new HashSet<IConstructible>(trackedConstructibles);
+            trackedConstructibles.Clear();
+
+            foreach (IConstructible constructible in lastConstructiblesTracked)
+            {
+                if (Find.Selector.SelectedObjects.Contains(constructible))
+                {
+                    // Ensure constructible is a Thing before casting
+                    if (constructible is Thing thing)
+                    {
+                        // Skip if forbidden and forbidden tracking is disabled
+                        if (ForbidUtility.IsForbidden(thing, Faction.OfPlayer) && !trackForbidden) continue;
+
+                        // Track the constructible
+                        Track(constructible);
+
+                        // Get the corners and adjust the rect
+                        Vector3[] corners = thing.CornerPositions();
+                        for (int i = 0; i < corners.Length; i++)
+                        {
+                            rectBuilder.ConsiderPoint(corners[i]);
+                        }
+                    }
+                }
+            }
+
+            // Build the containing rectangle based on the selected constructibles
+            containingRect = rectBuilder.ToCellRect();
+            cacheUpdated = false;
+        }
+
+        #endregion track updating
+
+        public void FrameBeingBuilt(Frame frame)
 		{
 			if (!cachedWorkLeftForFrames.ContainsKey(frame)) return;
 			WorkLeft = (WorkLeft - cachedWorkLeftForFrames[frame]) + frame.GetWorkAmount();

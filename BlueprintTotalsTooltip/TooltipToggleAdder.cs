@@ -22,28 +22,31 @@ namespace BlueprintTotalsTooltip
 			if (methodsToNotifyOnToggle.Contains(method))
 				methodsToNotifyOnToggle.Remove(method);
 		}
+        public bool DrawTooltip => ModSettings_BlueprintTotal.ShouldDrawTooltip;
 
-		static void Postfix(WidgetRow row, bool worldView)
-		{
-			if (worldView || row == null) return;
-			bool current = TotalsTooltipMod.ShouldDrawTooltip;
-			bool previous = current;
-			row.ToggleableIcon(ref current, AssetLoader.totalsTooltipToggleTexture, "ShowTotalsTooltipTip".Translate(TotalsTooltipMod.toggleTipDraw.MainKeyLabel), SoundDefOf.Mouseover_ButtonToggle);
-			if (previous != current)
-			{
-				TotalsTooltipMod.ShouldDrawTooltip.Value = current;
-				NotifyPlaySettingToggled();
-			}
-		}
+        static void Postfix(WidgetRow row, bool worldView)
+        {
+            if (worldView || row == null) return;
 
-		public static void NotifyPlaySettingToggled()
-		{
-			TotalsTooltipMod.ShouldDrawTooltip.ForceSaveChanges();
-			foreach (Action method in methodsToNotifyOnToggle)
-				method();
-		}
+            bool previous = ModSettings_BlueprintTotal.ShouldDrawTooltip;
 
-		// IN MEMORIAM: My first working transpiler patch previously written in PlaySettingChangeDetector.cs
-		// Superseded by additional code in this class. ~9/8/2018 to 4/1/2019
-	}
+            row.ToggleableIcon(ref ModSettings_BlueprintTotal.ShouldDrawTooltip,
+                AssetLoader.totalsTooltipToggleTexture,
+                "ShowTotalsTooltipTip".Translate(),
+                SoundDefOf.Mouseover_ButtonToggle);
+            if (previous != ModSettings_BlueprintTotal.ShouldDrawTooltip)
+            {
+                NotifyPlaySettingToggled();
+            }
+
+        }
+        public static void NotifyPlaySettingToggled()
+        {
+            foreach (Action method in methodsToNotifyOnToggle)
+                method();
+        }
+
+        // IN MEMORIAM: My first working transpiler patch previously written in PlaySettingChangeDetector.cs
+        // Superseded by additional code in this class. ~9/8/2018 to 4/1/2019
+    }
 }

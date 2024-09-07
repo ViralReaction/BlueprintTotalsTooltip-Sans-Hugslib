@@ -1,6 +1,6 @@
-﻿using HugsLib.Settings;
-using UnityEngine;
+﻿using UnityEngine;
 using Verse;
+using System;
 
 namespace BlueprintTotalsTooltip.TotalsTipSettingsUtilities
 {
@@ -19,20 +19,17 @@ namespace BlueprintTotalsTooltip.TotalsTipSettingsUtilities
 
 	static class TipPosSettingsHandler
 	{
-		private static readonly float marginSize = 3f;
-
-		public static bool settingsChanged = false;
-
-		public static void DrawTipPosSetting(Rect rect, SettingHandle<int> xHandler, SettingHandle<int> yHandler)
+		
+		public static void DrawTipPosSetting(Rect rect, int xHandler, int yHandler)
 		{
 			settingsChanged = false;
-			xHandler.CustomDrawerHeight = rect.width;
+            ModSettings_BlueprintTotal.TipXPositionCustomDrawerHeight = rect.width;
 			Rect drawingRect = rect.ContractedBy(marginSize);
-			int[] valuesFromSliders = DrawTwoAxisIntSliders(drawingRect, 16f, new int[] { xHandler.Value, yHandler.Value });
-			if (valuesFromSliders[0] != xHandler.Value || valuesFromSliders[1] != yHandler.Value)
+            int[] valuesFromSliders = DrawTwoAxisIntSliders(drawingRect, 8f, new int[] { xHandler, yHandler });
+			if (valuesFromSliders[0] != xHandler || valuesFromSliders[1] != yHandler)
 			{
-				xHandler.Value = valuesFromSliders[0];
-				yHandler.Value = valuesFromSliders[1];
+				xHandler = valuesFromSliders[0];
+				yHandler = valuesFromSliders[1];
 				settingsChanged = true;
 			}
 			DoToolTip(rect);
@@ -47,28 +44,27 @@ namespace BlueprintTotalsTooltip.TotalsTipSettingsUtilities
 
 		private static int[] DrawTwoAxisIntSliders(Rect rect, float sliderWidth, int[] values)
 		{
-			GUI.BeginGroup(rect);
-			Rect horizontalRect = new Rect(sliderWidth, 0f, rect.width - sliderWidth, sliderWidth);
-			Rect verticalRect = new Rect(0f, sliderWidth, sliderWidth, rect.height - sliderWidth);
-			int xSliderValue = (int)Widgets.HorizontalSlider(horizontalRect, values[0], 0, 8, true, null, null, null, 1);
-			int ySliderValue = (int)ToolTipSettingsUtility.LabelLessVerticalSlider(verticalRect, values[1], 0, 8, true, 1);
+            GUI.BeginGroup(rect);
+            Rect horizontalRect = new Rect(sliderWidth + 20f, 0f, rect.width - sliderWidth, sliderWidth);
+            Rect verticalRect = new Rect(5f, sliderWidth + 20f, sliderWidth, rect.height - sliderWidth);
+            ModSettings_BlueprintTotal.TipXPosition = (int)Widgets.HorizontalSlider(horizontalRect, values[0], 0, 8, true, null, null, null, 1);
+            ModSettings_BlueprintTotal.TipYPosition = (int)ToolTipSettingsUtility.LabelLessVerticalSlider(verticalRect, values[1], 0, 8);
 			GUI.EndGroup();
-			return new int[] { xSliderValue, ySliderValue };
+			return new int[] { ModSettings_BlueprintTotal.TipXPosition, ModSettings_BlueprintTotal.TipYPosition  };
 		}
 
-		private static void DrawHelperGraphics(Rect rect, SettingHandle<int> xHandler, SettingHandle<int> yHandler, float sliderWidth)
-		{
-			Rect blueprints = new Rect(rect.x + sliderWidth, rect.y + sliderWidth, rect.width - sliderWidth, rect.height - sliderWidth).ContractedBy(16 * marginSize);
-			Widgets.DrawHighlight(blueprints);
-			float helperTipSize = 12 * marginSize;
-			float tooltipX = GetDimensionFromSetting(blueprints.xMin, blueprints.xMax, helperTipSize, (RectDimensionPosition)xHandler.Value);
-			float tooltipY = GetDimensionFromSetting(blueprints.yMin, blueprints.yMax, helperTipSize, (RectDimensionPosition)yHandler.Value);
-			Rect tooltip = new Rect(tooltipX, tooltipY, helperTipSize, helperTipSize);
-			Widgets.DrawBox(tooltip);
-			DrawCenterlines(blueprints.center.x, blueprints.center.y, helperTipSize + blueprints.width / 2);
-		}
+        private static void DrawHelperGraphics(Rect rect, int xHandler, int yHandler, float sliderWidth)
+        {
+            Rect rect2 = new Rect(rect.x + sliderWidth + 20f, rect.y + sliderWidth + 20f, rect.width - sliderWidth, rect.height - sliderWidth).ContractedBy(16f * TipPosSettingsHandler.marginSize);
+            Widgets.DrawHighlight(rect2);
+            float num = 12f * TipPosSettingsHandler.marginSize;
+            float dimensionFromSetting = TipPosSettingsHandler.GetDimensionFromSetting(rect2.xMin, rect2.xMax, num, (RectDimensionPosition)xHandler);
+            float dimensionFromSetting2 = TipPosSettingsHandler.GetDimensionFromSetting(rect2.yMin, rect2.yMax, num, (RectDimensionPosition)yHandler);
+            Widgets.DrawBox(new Rect(dimensionFromSetting, dimensionFromSetting2, num, num), 1, null);
+            TipPosSettingsHandler.DrawCenterlines(rect2.center.x, rect2.center.y, num + rect2.width / 2f);
+        }
 
-		public static float GetDimensionFromSetting(float lower, float upper, float dimWidth, RectDimensionPosition setting)
+        public static float GetDimensionFromSetting(float lower, float upper, float dimWidth, RectDimensionPosition setting)
 		{
 			switch (setting)
 			{
@@ -94,10 +90,15 @@ namespace BlueprintTotalsTooltip.TotalsTipSettingsUtilities
 			return 0;
 		}
 
-		private static void DrawCenterlines(float centerX, float centerY, float length)
-		{
-			Widgets.DrawLineHorizontal(centerX - length, centerY, 2 * length);
-			Widgets.DrawLineVertical(centerX, centerY - length, 2 * length);
-		}
-	}
+        private static void DrawCenterlines(float centerX, float centerY, float length)
+        {
+            Widgets.DrawLineHorizontal(centerX - length, centerY, 2f * length);
+            Widgets.DrawLineVertical(centerX, centerY - length, 2f * length);
+        }
+        private static readonly float marginSize = 3f;
+
+        public static bool settingsChanged = false;
+
+       
+    }
 }
